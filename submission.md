@@ -60,9 +60,33 @@ When a system profile submits a numerical score rating for a song shared by anot
 ### 📌 Issue #5 — The last song in a playlist never shows up
 
 **1. What went wrong:**
-Playlists consistently mask and conceal the most recently appended tracking record, dropping the final row collection item from visual outputs entirely.
+Playlist song lookups consistently conceal and drop the final track added to a playlist, leaving the last record invisible to users.
 
 **2. How you reproduced it:**
-- **Inputs used:** Checked the track count via `GET /playlists/<playlist_id>/songs`. Fired a subsequent data update entry: `POST /playlists/<playlist_id>/songs` adding an additional song. Re-queried the primary tracks collection endpoint.
-- **Observed Behavior:** The initial invisible target track became visible, but the newly appended tracking row immediately vanished from the response array list. The output collection length stayed permanently short by one item.
-- **Expected Behavior:** Every single song associated with the target playlist structure should render inside the returned list array, including the most recent addition.
+- **Inputs used:** Checked total records via `GET /playlists/<playlist_id>/songs`. Re-sent a payload update using `POST /playlists/<playlist_id>/songs` to append a fresh track entry, then re-fetched the list.
+- **Observed Behavior:** The newly added song was missing from the returned array list, while the previously hidden song suddenly appeared.
+- **Expected Behavior:** All song instances mapped within the relational database bridge schema should render perfectly inside the return dictionary array.
+
+**3. How you found the root cause:**
+Traced execution flow to the retrieval block inside `services/playlist_service.py`. Checked the return statement pipeline of the `get_playlist_songs()` method function block.
+
+**4. The root cause:**
+The code applied an off-by-one upper boundary negative array slice (`[:-1]`) on the instantiated track list. This structural indexing error automatically truncated the last element of the array right before formatting the JSON output payload.
+
+**5. Your fix and side-effect check:**
+Removed the trailing `[:-1]` slice operator to allow the list comprehension loop to format and return the entire collection. Confirmed via local manual tracking that adding new entries preserves correct visibility counts across all items.
+
+
+# Mixtape Bug Hunt — Submission Document
+
+## 🤖 Milestone 4: AI Usage Disclosure
+
+### 1. Codebase Navigation and Orientation
+- **How it was used:** I utilized the AI assistant to summarize the modular responsibilities of the files within the `services/` directory. Specifically, I requested a top-down explanation of how the `db.session.query` scopes in Flask-SQLAlchemy interact with table joins.
+- **What it helped me understand:** The AI successfully traced the call execution chains, clarifying how routing blueprints in the presentation layer pass unvalidated parameters directly into underlying business service controllers.
+
+### 2. Algorithmic Debugging & Code Verification
+- **How it was used:** I leveraged the AI tool to isolate edge-case behaviors in database query return boundaries. For instance, I prompted the assistant to explain the difference between raw multi-table outer joins versus uniquely constrained entity selections.
+- **Where human verification took over:** While the AI pointed out general list append loops, I had to trace `services/search_service.py` manually line-by-line to realize that duplicate song occurrences were explicitly bound to the number of tags a track possessed. I verified this diagnosis by querying the endpoint `GET /songs/search?q=Anthem` directly, checking database behaviors, and explicitly adding the `.distinct()` constraint modifier myself to solve the true underlying root cause.
+
+---
