@@ -1,5 +1,17 @@
 # Mixtape Bug Hunt — Submission Document
 
+## 🤖 Milestone 4: AI Usage Disclosure
+
+### 1. Codebase Navigation and Orientation
+- **How it was used:** I utilized the AI assistant to summarize the modular responsibilities of the files within the `services/` directory. Specifically, I requested a top-down explanation of how the `db.session.query` scopes in Flask-SQLAlchemy interact with table joins.
+- **What it helped me understand:** The AI successfully traced the call execution chains, clarifying how routing blueprints in the presentation layer pass parameters directly into underlying business service controllers.
+
+### 2. Algorithmic Debugging & Code Verification
+- **How it was used:** I leveraged the AI tool to isolate edge-case behaviors in database query return boundaries. For instance, I prompted the assistant to explain the difference between raw multi-table outer joins versus uniquely constrained entity selections.
+- **Where human verification took over:** While the AI pointed out general list append loops, I had to trace `services/search_service.py` manually line-by-line to realize that duplicate song occurrences were explicitly bound to the number of tags a track possessed. I verified this diagnosis by querying the endpoint `GET /songs/search?q=Anthem` directly, checking database behaviors, and explicitly adding the `.distinct()` constraint modifier myself to solve the true underlying root cause.
+
+---
+
 ## 🗺️ Milestone 1: Codebase Map
 
 ### Core Architecture Overview
@@ -22,7 +34,7 @@ Every API route layer delegates business computations immediately to an isolated
 
 ---
 
-## 🔍 Milestone 2: Root Cause Analyses (RCA)
+## 🔍 Milestone 2 & 3: Root Cause Analyses (RCA)
 
 ### 📌 Issue #3 — The same song keeps showing up twice in search
 
@@ -38,7 +50,7 @@ Keyword queries for specific songs return duplicate records of the exact same tr
 Inspected `services/search_service.py`. Followed the database invocation sequence built on `db.session.query(Song)`. I noticed the implementation executed a manual `.outerjoin()` on the `song_tags` bridge structure without applying a uniqueness constraint on the return boundary.
 
 **4. The root cause:**
-The explicit `.outerjoin()` statement on the `song_tags` model generates a distinct tabular row for every tag matched to a song. Because the database returns multiple table rows for a single track matching multiple tags, SQLAlchemy instantiates duplicate duplicate `Song` objects for each relative join pair. This means the array response length expands linearly based on the count of keywords mapped to a single item.
+The explicit `.outerjoin()` statement on the `song_tags` model generates a distinct tabular row for every tag matched to a song. Because the database returns multiple table rows for a single track matching multiple tags, SQLAlchemy instantiates duplicate `Song` objects for each relative join pair. This means the array response length expands linearly based on the count of keywords mapped to a single item.
 
 **5. Your fix and side-effect check:**
 Appended the `.distinct()` constraint method immediately preceding the `.all()` terminal call expression to collapse multi-row join results back into unique entity blocks. Verified that general searches match cleanly and confirmed duplicates are completely eliminated from track payloads.
@@ -84,18 +96,3 @@ The code applied an off-by-one upper boundary negative array slice (`[:-1]`) on 
 
 **5. Your fix and side-effect check:**
 Removed the trailing `[:-1]` slice operator to allow the list comprehension loop to format and return the entire collection. Confirmed via local manual tracking that adding new entries preserves correct visibility counts across all items.
-
-
-# Mixtape Bug Hunt — Submission Document
-
-## 🤖 Milestone 4: AI Usage Disclosure
-
-### 1. Codebase Navigation and Orientation
-- **How it was used:** I utilized the AI assistant to summarize the modular responsibilities of the files within the `services/` directory. Specifically, I requested a top-down explanation of how the `db.session.query` scopes in Flask-SQLAlchemy interact with table joins.
-- **What it helped me understand:** The AI successfully traced the call execution chains, clarifying how routing blueprints in the presentation layer pass unvalidated parameters directly into underlying business service controllers.
-
-### 2. Algorithmic Debugging & Code Verification
-- **How it was used:** I leveraged the AI tool to isolate edge-case behaviors in database query return boundaries. For instance, I prompted the assistant to explain the difference between raw multi-table outer joins versus uniquely constrained entity selections.
-- **Where human verification took over:** While the AI pointed out general list append loops, I had to trace `services/search_service.py` manually line-by-line to realize that duplicate song occurrences were explicitly bound to the number of tags a track possessed. I verified this diagnosis by querying the endpoint `GET /songs/search?q=Anthem` directly, checking database behaviors, and explicitly adding the `.distinct()` constraint modifier myself to solve the true underlying root cause.
-
----
