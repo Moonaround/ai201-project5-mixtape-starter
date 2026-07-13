@@ -27,12 +27,21 @@ Every API route layer delegates business computations immediately to an isolated
 ### 📌 Issue #3 — The same song keeps showing up twice in search
 
 **1. What went wrong:**
-When users execute a keyword query, specific track assets repeat multiple times as duplicate objects in the returned JSON data collection payload.
+Keyword queries for specific songs return duplicate records of the exact same track when assets have multiple user tags attached.
 
 **2. How you reproduced it:**
-- **Inputs used:** Issued a `GET` request to the search endpoint passing a shared keyword: `GET /songs/search?q=Anthem`
-- **Observed Behavior:** The JSON results array returned multiple identical dictionary blocks representing the exact same track ID, specifically duplicating entries where the search keyword matched both the track name and album name metadata.
-- **Expected Behavior:** Each match corresponding to an individual database record should appear precisely once inside the search list payload.
+- **Inputs used:** Fired an HTTP request `GET /songs/search?q=Anthem` into the local app environment.
+- **Observed Behavior:** The response payload duplicated matching items where the targeted track model possessed multiple categorical associations within the tag join matrices.
+- **Expected Behavior:** Each target track entity record matching the keyword query criteria must appear precisely once inside the dictionary payload array.
+
+**3. How you found the root cause:**
+Inspected `services/search_service.py`. Followed the database invocation sequence built on `db.session.query(Song)`. I noticed the implementation executed a manual `.outerjoin()` on the `song_tags` bridge structure without applying a uniqueness constraint on the return boundary.
+
+**4. The root cause:**
+The explicit `.outerjoin()` statement on the `song_tags` model generates a distinct tabular row for every tag matched to a song. Because the database returns multiple table rows for a single track matching multiple tags, SQLAlchemy instantiates duplicate duplicate `Song` objects for each relative join pair. This means the array response length expands linearly based on the count of keywords mapped to a single item.
+
+**5. Your fix and side-effect check:**
+Appended the `.distinct()` constraint method immediately preceding the `.all()` terminal call expression to collapse multi-row join results back into unique entity blocks. Verified that general searches match cleanly and confirmed duplicates are completely eliminated from track payloads.
 
 ---
 

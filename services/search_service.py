@@ -31,6 +31,7 @@ def search_songs(query: str) -> list[dict]:
                 Song.artist.ilike(f"%{query}%"),
             )
         )
+        .distinct()  # ✨ THE FIX: Ensures each matching Song entity is evaluated uniquely
         .all()
     )
 
