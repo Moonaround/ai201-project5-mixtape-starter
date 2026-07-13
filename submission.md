@@ -48,12 +48,21 @@ Appended the `.distinct()` constraint method immediately preceding the `.all()` 
 ### 📌 Issue #4 — Missing rating notification event
 
 **1. What went wrong:**
-When a system profile submits a numerical score rating for a song shared by another user, the asset owner never receives a notification alert on their account stream dashboard.
+System accounts do not receive an alert notification on their metrics stream dashboard when another profile leaves a score rating on a track they initially shared.
 
 **2. How you reproduced it:**
-- **Inputs used:** Executed a standard network update request matching the target interface schema: `POST /songs/<song_id>/rate` with payload data containing a user ID and a numeric value. Followed up by calling `GET /users/<owner_id>/notifications`.
-- **Observed Behavior:** The rating score updated correctly on the track entity block, but the user's notification list length remained empty. No database record linked to the rating action was generated inside the notification table.
-- **Expected Behavior:** Rating a friend's song must trigger a notification event instance tracking the sender's rating update action, identical to when a track is appended to a collaborative playlist.
+- **Inputs used:** Submitted a payload score update to `POST /songs/<song_id>/rate`, then fetched user data via `GET /users/<my_id>/notifications`.
+- **Observed Behavior:** The evaluation metric score processed correctly on the track asset, but the user's notification list collection length returned empty.
+- **Expected Behavior:** An entry logging the score interaction should be written to the database notification schema and rendered on the owner's account dashboard.
+
+**3. How you found the root cause:**
+Traced structural paths directly inside `services/notification_service.py`. Compared the notification trigger hooks in `add_to_playlist()` with the execution flow lines of the `rate_song()` processing wrapper.
+
+**4. The root cause:**
+While the `rate_song()` controller contained complete code logic to manage score overwrites, update ratings, and run database commits, it lacked an architectural call invoking the companion `create_notification()` handler. This caused ratings to process as isolated entries without downstream dashboard alert updates.
+
+**5. Your fix and side-effect check:**
+Injected a conditional verification query evaluating `if song.shared_by != user_id:` inside `rate_song()`, triggering `create_notification()` with type flag `"song_rated"` prior to committing the data layer transactions. Verified that rating an external profile's song now writes an alert record accurately without side effects.
 
 ---
 
