@@ -22,5 +22,38 @@ Every API route layer delegates business computations immediately to an isolated
 
 ---
 
-## 🔍 Milestone 2: Root Cause Analysis (RCA) Tracking
-*(This section remains blank for your forthcoming Milestone 2 code modifications. Each fixed bug must document its 5 core fields here.)*
+## 🔍 Milestone 2: Root Cause Analyses (RCA)
+
+### 📌 Issue #3 — The same song keeps showing up twice in search
+
+**1. What went wrong:**
+When users execute a keyword query, specific track assets repeat multiple times as duplicate objects in the returned JSON data collection payload.
+
+**2. How you reproduced it:**
+- **Inputs used:** Issued a `GET` request to the search endpoint passing a shared keyword: `GET /songs/search?q=Anthem`
+- **Observed Behavior:** The JSON results array returned multiple identical dictionary blocks representing the exact same track ID, specifically duplicating entries where the search keyword matched both the track name and album name metadata.
+- **Expected Behavior:** Each match corresponding to an individual database record should appear precisely once inside the search list payload.
+
+---
+
+### 📌 Issue #4 — Missing rating notification event
+
+**1. What went wrong:**
+When a system profile submits a numerical score rating for a song shared by another user, the asset owner never receives a notification alert on their account stream dashboard.
+
+**2. How you reproduced it:**
+- **Inputs used:** Executed a standard network update request matching the target interface schema: `POST /songs/<song_id>/rate` with payload data containing a user ID and a numeric value. Followed up by calling `GET /users/<owner_id>/notifications`.
+- **Observed Behavior:** The rating score updated correctly on the track entity block, but the user's notification list length remained empty. No database record linked to the rating action was generated inside the notification table.
+- **Expected Behavior:** Rating a friend's song must trigger a notification event instance tracking the sender's rating update action, identical to when a track is appended to a collaborative playlist.
+
+---
+
+### 📌 Issue #5 — The last song in a playlist never shows up
+
+**1. What went wrong:**
+Playlists consistently mask and conceal the most recently appended tracking record, dropping the final row collection item from visual outputs entirely.
+
+**2. How you reproduced it:**
+- **Inputs used:** Checked the track count via `GET /playlists/<playlist_id>/songs`. Fired a subsequent data update entry: `POST /playlists/<playlist_id>/songs` adding an additional song. Re-queried the primary tracks collection endpoint.
+- **Observed Behavior:** The initial invisible target track became visible, but the newly appended tracking row immediately vanished from the response array list. The output collection length stayed permanently short by one item.
+- **Expected Behavior:** Every single song associated with the target playlist structure should render inside the returned list array, including the most recent addition.
